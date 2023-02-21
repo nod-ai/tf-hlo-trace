@@ -1,2 +1,4 @@
+cmake-build-extension
 pre-commit
+pytest
 tensorflow

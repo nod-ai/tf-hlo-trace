@@ -32,3 +32,9 @@ target_include_directories(tf_hlo_trace_py_ext
     PRIVATE "${TESORFLOW_PATH}/include"
 )
 target_link_libraries(tf_hlo_trace_py_ext PRIVATE tf_hlo_trace_lib)
+
+install(
+    TARGETS tf_hlo_trace_py_ext
+    COMPONENT python_bindings
+    LIBRARY DESTINATION .
+    RUNTIME DESTINATION .)
