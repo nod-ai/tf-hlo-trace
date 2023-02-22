@@ -2,6 +2,7 @@ from setuptools import setup
 from cmake_build_extension import BuildExtension, CMakeExtension
 from argparse import ArgumentParser
 import sys
+import os
 
 
 def parse_and_comsume_args():
@@ -18,6 +19,8 @@ def parse_and_comsume_args():
 
 
 args = parse_and_comsume_args()
+
+cmake_config_args = os.environ["TF_HLO_TRACE_CMAKE_CONFIG_ADDITIONAL_ARGS"].split()
 
 setup(
     packages=["tf_hlo_trace"],
@@ -36,7 +39,8 @@ setup(
             cmake_configure_options=[
                 "-G",
                 "Ninja",
-            ],
+            ]
+            + cmake_config_args,
         ),
     ],
     cmdclass=dict(build_ext=BuildExtension),
