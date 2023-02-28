@@ -2,6 +2,7 @@
 #include <tensorflow/compiler/xla/hlo/ir/hlo_module.h>
 
 #include <tf_hlo_trace/tf_hlo_trace_lib.hpp>
+#include <utility>
 
 namespace tf_hlo_trace {
 
@@ -26,9 +27,19 @@ void make_source_locations_unique(xla::HloModule* hlo_module) {
 
 hlo_module_trace_insturmentation_metadata insert_trace_instrumentation(
     xla::HloComputation* hlo_computation) {
-  for (xla::HloInstruction* instruction : hlo_computation->instructions()) {
-  }
-  return hlo_module_trace_insturmentation_metadata();
+  auto instructions_range = hlo_computation->instructions();
+  std::vector<xla::HloInstruction*> instructions;
+  instructions.reserve(hlo_computation->instruction_count() + 1);
+  instructions.insert(instructions.begin(), instructions_range.begin(),
+                      instructions_range.end());
+  instructions.push_back(hlo_computation->root_instruction());
+  std::unique_ptr<xla::HloInstruction> all_instructions_tuple =
+      xla::HloInstruction::CreateTuple(absl::MakeSpan(instructions));
+  xla::HloInstruction* all_instructions_tuple_ptr = &*all_instructions_tuple;
+  hlo_computation->AddInstruction(std::move(all_instructions_tuple));
+  hlo_computation->set_root_instruction(all_instructions_tuple_ptr, true);
+  return hlo_module_trace_insturmentation_metadata(
+      instructions.size() - 1, {0, instructions.size() - 1});
 }
 
 hlo_module_trace_insturmentation_metadata insert_trace_instrumentation(

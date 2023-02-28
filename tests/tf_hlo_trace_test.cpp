@@ -34,14 +34,24 @@ std::string read_file(const char* path) {
   return res;
 }
 
-TEST(TfHloTrace, MakeSourceLocationsUnique) {
-  auto hlo_path = std::filesystem::path(data_dir_path).parent_path() /
-                  "multi_instuction.hlo";
-  auto hlo_str = read_file(hlo_path.c_str());
+std::unique_ptr<xla::HloModule> load_hlo_module(const char* path) {
+  auto hlo_str = read_file(path);
   tsl::StatusOr<std::unique_ptr<xla::HloModule>> hlo_module_status =
       xla::ParseAndReturnUnverifiedModule(hlo_str);
   std::unique_ptr<xla::HloModule> hlo_module =
       std::move(hlo_module_status).value();
+  return hlo_module;
+}
+
+std::unique_ptr<xla::HloModule> load_example_multi_instruction_hlo() {
+  auto hlo_path = std::filesystem::path(data_dir_path).parent_path() /
+                  "multi_instuction.hlo";
+  return load_hlo_module(hlo_path.c_str());
+}
+
+TEST(TfHloTrace, MakeSourceLocationsUnique) {
+  std::unique_ptr<xla::HloModule> hlo_module =
+      load_example_multi_instruction_hlo();
   make_source_locations_unique(&*hlo_module);
 
   for (int64_t computation_idx = 0;
@@ -58,6 +68,38 @@ TEST(TfHloTrace, MakeSourceLocationsUnique) {
       ++instruction_idx;
     }
   }
+}
+
+TEST(TfHloTrace, InsertTraceInstrumentation) {
+  std::unique_ptr<xla::HloModule> hlo_module =
+      load_example_multi_instruction_hlo();
+  xla::HloComputation* entry_computation = hlo_module->entry_computation();
+  size_t original_instruction_count = entry_computation->instruction_count();
+  auto original_instructions_range = entry_computation->instructions();
+  xla::HloInstruction* original_root_instruction =
+      entry_computation->root_instruction();
+  hlo_module_trace_insturmentation_metadata instrumentation_metadata =
+      insert_trace_instrumentation(&*hlo_module);
+  xla::HloInstruction* root_instruction = entry_computation->root_instruction();
+  ASSERT_EQ(root_instruction->opcode(), xla::HloOpcode::kTuple);
+  ASSERT_LE(
+      instrumentation_metadata.result_tuple_original_root_instruction_index,
+      root_instruction->operand_count());
+  ASSERT_EQ(
+      original_root_instruction,
+      root_instruction
+          ->operands()[instrumentation_metadata
+                           .result_tuple_original_root_instruction_index]);
+  ASSERT_EQ(
+      original_instruction_count,
+      instrumentation_metadata.result_tuple_original_instructions_range.second -
+          instrumentation_metadata.result_tuple_original_instructions_range
+              .first);
+  ASSERT_EQ(
+      root_instruction
+          ->operands()[instrumentation_metadata
+                           .result_tuple_original_instructions_range.first],
+      *original_instructions_range.begin());
 }
 
 }  // namespace
