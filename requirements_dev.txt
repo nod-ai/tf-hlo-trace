@@ -1,4 +1,5 @@
 cmake-build-extension
+jaxlib
 pre-commit
 pytest
 tensorflow

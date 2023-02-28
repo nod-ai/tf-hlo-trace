@@ -2,7 +2,7 @@ from setuptools import setup
 from cmake_build_extension import BuildExtension, CMakeExtension
 from argparse import ArgumentParser
 import sys
-import os
+import shlex
 
 
 def parse_and_comsume_args():
@@ -13,14 +13,18 @@ def parse_and_comsume_args():
         choices=["Debug", "Release", "RelWithDebInfo"],
         default="Release",
     )
+    arg_parser.add_argument(
+        "--cmake_additional_config_args",
+        type=str,
+        default="",
+    )
     args, remaining_args = arg_parser.parse_known_args()
     sys.argv = [sys.argv[-1]] + remaining_args
     return args
 
 
 args = parse_and_comsume_args()
-
-cmake_config_args = os.environ["TF_HLO_TRACE_CMAKE_CONFIG_ADDITIONAL_ARGS"].split()
+cmake_additional_config_args_list = shlex.split(args.cmake_additional_config_args)
 
 setup(
     packages=["tf_hlo_trace"],
@@ -40,7 +44,7 @@ setup(
                 "-G",
                 "Ninja",
             ]
-            + cmake_config_args,
+            + cmake_additional_config_args_list,
         ),
     ],
     cmdclass=dict(build_ext=BuildExtension),
